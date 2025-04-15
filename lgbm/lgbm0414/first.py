@@ -17,7 +17,7 @@ plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'Microsoft YaHei', 'Heiti
 plt.rcParams['axes.unicode_minus'] = False
 
 # ======== 讀取資料 ========
-df = pd.read_csv("../../database/filter_training.csv", encoding="utf-8")
+df = pd.read_csv("../../database/lgbm_filter_training.csv", encoding="utf-8", index_col=0)
 # 取得欄位列表
 columns = df.columns.tolist()
 

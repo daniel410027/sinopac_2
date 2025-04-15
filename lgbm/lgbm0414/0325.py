@@ -18,7 +18,7 @@ print(f"模型特徵數量: {len(model.feature_names_in_)}")
 print(f"使用預測閾值: {threshold}")
 
 # ========== Step 2: 讀取測試資料 ==========
-test_df = pd.read_csv("../../database/merged_test.csv", encoding="utf-8")
+test_df = pd.read_csv("../../database/lgbm_merged_test.csv", encoding="utf-8")
 test_ids = test_df["ID"].values
 
 # 取得欄位列表
@@ -29,7 +29,7 @@ first_column = columns[:1]  # 第一欄 (ID)
 middle_column = columns[1:]  # 中間欄位（不含首欄）
 
 # 選取 middle 中的前 120 欄
-middle_column_120 = middle_column[:120]
+middle_column_120 = middle_column[:121]
 
 # 重新組合欄位順序
 selected_columns = first_column + middle_column_120
@@ -40,7 +40,12 @@ test_df = test_df[selected_columns]
 X_test_raw = test_df.drop(["ID"], axis=1, errors='ignore')
 X_test_numeric = X_test_raw.select_dtypes(include=["number"])
 
+# 暫時先這樣處理
+if "主力券商_分點吃貨比(%)" in X_test_numeric.columns:
+    X_test_numeric = X_test_numeric.drop(columns=["主力券商_分點吃貨比(%)"])
+
 # ========== Step 3: Imputer 處理 ==========
+X_test_numeric = X_test_numeric.reindex(columns=model.feature_names_in_, fill_value=0)
 X_test_imputed = imputer.transform(X_test_numeric)
 
 # 轉回 DataFrame

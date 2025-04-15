@@ -18,7 +18,7 @@ plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'Microsoft YaHei', 'Heiti
 plt.rcParams['axes.unicode_minus'] = False
 
 # ======== 讀取資料 ========
-df = pd.read_csv("../../database/filter_training.csv", encoding="utf-8")
+df = pd.read_csv("../../database/lgbm_filter_training.csv", encoding="utf-8")
 target = df["飆股"]
 features_raw = df.drop(["ID", "飆股"], axis=1)
 features_numeric = features_raw.select_dtypes(include=["number"])
@@ -107,7 +107,7 @@ else:
 
 feature_importance = pd.read_csv("feature_importance.csv")
 
-feature_counts = list(range(100, min(251, len(feature_importance)+1), 1))
+feature_counts = list(range(100, min(1001, len(feature_importance)+1), 100))
 print("\n🚀 開始測試不同特徵數量對 F1 分數的影響（支援中途存檔與續跑）...")
 
 for top_n in feature_counts:
@@ -155,7 +155,7 @@ for top_n in feature_counts:
         return best_f1
 
     study_sub = optuna.create_study(direction="maximize")
-    study_sub.optimize(objective_sub, n_trials=10, show_progress_bar=False)
+    study_sub.optimize(objective_sub, n_trials=30, show_progress_bar=False)
 
     best_f1 = study_sub.best_value
     f1_scores_by_feature_count[key] = best_f1
