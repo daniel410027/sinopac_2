@@ -23,7 +23,7 @@ ada_param_name = 'estimator' if sklearn.__version__ >= '1.2' else 'base_estimato
 # ======== 讀取與前處理資料 ========
 df = pd.read_csv("../database/filter_training.csv", encoding="utf-8")
 columns = df.columns.tolist()
-selected_columns = columns[:1] + columns[1:-1][:120] + columns[-1:]
+selected_columns = columns[:1] + columns[1:-1][:20] + columns[-1:]
 df = df[selected_columns]
 
 target = df["飆股"]
@@ -57,6 +57,7 @@ def objective(trial):
     ada_params = {
         "n_estimators": trial.suggest_int("n_estimators", 50, 1000),
         "learning_rate": trial.suggest_float("learning_rate", 0.01, 1.0),
+        # "algorithm": trial.suggest_categorical("algorithm", ["SAMME", "SAMME.R"]),
         ada_param_name: DecisionTreeClassifier(**dt_params),
         "random_state": 62
     }
