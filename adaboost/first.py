@@ -21,7 +21,7 @@ plt.rcParams['axes.unicode_minus'] = False
 ada_param_name = 'estimator' if sklearn.__version__ >= '1.2' else 'base_estimator'
 
 # ======== 讀取與前處理資料 ========
-df = pd.read_csv("../database/lgbm_filter_training.csv", encoding="utf-8", index_col=0)
+df = pd.read_csv("../database/filter_training.csv", encoding="utf-8")
 columns = df.columns.tolist()
 selected_columns = columns[:1] + columns[1:-1][:120] + columns[-1:]
 df = df[selected_columns]
