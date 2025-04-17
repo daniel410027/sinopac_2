@@ -1,13 +1,14 @@
+print(1)
 import pandas as pd
 import dask.dataframe as dd
 import os
 
-file_path = "../../training.csv"
+file_path = "database/training.csv"
 df = dd.read_csv(file_path, sample=1000000)
-
+print(2)
 
 # 合併後的篩選特徵列表檔案路徑
-merged_features_file_path = "../0413LR_5/sort_shap.csv"
+merged_features_file_path = "sort_shap.csv"
 
 # 輸出篩選後的 training 資料檔案路徑
 output_filtered_train_path = "filter_training.csv"
