@@ -52,7 +52,8 @@ feature_importance = pd.read_csv("feature_importance.csv")
 def optimize_feature_count_with_optuna(
     X_train, X_val, y_train, y_val,
     feature_importance_df, scale_pos_weight,
-    feature_counts=range(200, 240, 5),
+    # feature_counts=range(200, 240, 5),
+    feature_counts = [202, 203, 204],
     save_path="f1_scores_by_feature_count.json",
     n_trials=30
 ):

@@ -123,6 +123,58 @@ best_model.fit(X_train, y_train)
 y_val_proba = best_model.predict_proba(X_val)[:, 1]
 y_val_pred = (y_val_proba > best_threshold).astype(int)
 
+# ======== 雙閾值最佳化搜尋與 heatmap 繪製 ========
+import seaborn as sns
+
+def find_best_dual_threshold(y_true, y_proba, plot_heatmap=True):
+    thresholds = np.linspace(0.1, 0.9, 9)
+    best_f1 = 0
+    best_small = 0.1
+    best_big = 0.9
+    f1_matrix = np.zeros((len(thresholds), len(thresholds)))
+
+    for i, small in enumerate(thresholds):
+        for j, big in enumerate(thresholds):
+            if big <= small:
+                f1_matrix[i, j] = np.nan
+                continue
+
+            y_pred = np.full_like(y_true, fill_value=2)
+            y_pred[y_proba > big] = 1
+            y_pred[y_proba < small] = 0
+
+            mask = y_pred != 2
+            if mask.sum() == 0:
+                f1_matrix[i, j] = np.nan
+                continue
+
+            f1 = f1_score(y_true[mask], y_pred[mask])
+            f1_matrix[i, j] = f1
+
+            if f1 > best_f1:
+                best_f1 = f1
+                best_small = small
+                best_big = big
+
+    if plot_heatmap:
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(f1_matrix, xticklabels=thresholds.round(2), yticklabels=thresholds.round(2),
+                    annot=True, fmt=".2f", cmap="YlGnBu")
+        plt.xlabel("big_threshold")
+        plt.ylabel("small_threshold")
+        plt.title("F1-score Heatmap for Dual Thresholds")
+        plt.tight_layout()
+        plt.savefig("dual_threshold_heatmap.png")
+        plt.close()
+        print("✅ 雙閾值 F1-score heatmap 圖已儲存為 dual_threshold_heatmap.png")
+
+    return best_small, best_big, best_f1
+
+# 執行雙閾值搜尋
+best_small, best_big, best_f1_dual = find_best_dual_threshold(y_val.values, y_val_proba)
+print(f"\n🎯 雙閾值最佳 F1-score：{best_f1_dual:.4f}")
+print(f"🔺 small_threshold = {best_small:.2f}, big_threshold = {best_big:.2f}")
+
 # ======== 儲存模型與預處理器 ========
 joblib.dump(best_model, "optuna_best_lgbm.pkl")
 joblib.dump(imputer, "optuna_imputer.pkl")
@@ -130,47 +182,13 @@ with open("optuna_model_info.json", "w") as f:
     json.dump({
         'best_params': {k: float(v) if isinstance(v, (int, float)) else v for k, v in best_params.items()},
         'best_threshold': float(best_threshold),
+        'dual_threshold': {
+            'small': float(best_small),
+            'big': float(best_big),
+            'f1': float(best_f1_dual)
+        },
         'features': list(features_clean.columns),
         'scale_pos_weight': float(scale_pos_weight)
     }, f, indent=4)
 
 print("✅ 模型與資訊已儲存完成")
-
-# ======== 評估報告與混淆矩陣 ========
-print("\n📊 分類報告：")
-print(classification_report(y_val, y_val_pred))
-
-print("\n🔍 混淆矩陣：")
-print(confusion_matrix(y_val, y_val_pred))
-
-# ======== 特徵重要性視覺化 ========
-feature_importance = pd.DataFrame({
-    'feature': features_clean.columns,
-    'importance': best_model.feature_importances_
-}).sort_values('importance', ascending=False)
-
-feature_importance.to_csv("feature_importance.csv", index=False)
-
-plt.figure(figsize=(12, 8))
-plt.barh(feature_importance.head(20)['feature'], feature_importance.head(20)['importance'])
-plt.xlabel('重要性')
-plt.ylabel('特徵')
-plt.title('Top 20 特徵重要性')
-plt.gca().invert_yaxis()
-plt.tight_layout()
-plt.savefig("optuna_feature_importance.png")
-plt.close()
-print("✅ 特徵重要性圖已儲存為 optuna_feature_importance.png")
-
-# ======== 預測機率分布圖 ========
-plt.figure(figsize=(10, 6))
-plt.hist(y_val_proba, bins=50, alpha=0.7, color='blue')
-plt.axvline(x=best_threshold, color='red', linestyle='--', label=f'最佳閾值 ({best_threshold:.2f})')
-plt.xlabel('預測機率')
-plt.ylabel('頻率')
-plt.title('驗證集預測機率分布')
-plt.legend()
-plt.grid(True)
-plt.savefig("optuna_prediction_distribution.png")
-plt.close()
-print("✅ 預測概率分布圖已儲存為 optuna_prediction_distribution.png")
