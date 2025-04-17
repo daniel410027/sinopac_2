@@ -34,11 +34,18 @@ imputer = SimpleImputer(strategy='median')
 features_imputed = imputer.fit_transform(features_numeric)
 features_clean = pd.DataFrame(features_imputed, columns=features_numeric.columns)
 
+# ======== 標準化處理 ========
+scaler = StandardScaler()
+features_scaled = scaler.fit_transform(features_clean)
+features_scaled_df = pd.DataFrame(features_scaled, columns=features_clean.columns)
+
+# ======== 權重計算 ========
 positive, negative = (target == 1).sum(), (target == 0).sum()
 scale_pos_weight = negative / positive
 print(f"✅ scale_pos_weight 計算完成：{scale_pos_weight:.2f}")
 
-X_train, X_val, y_train, y_val = train_test_split(features_clean, target, test_size=0.2, random_state=62)
+# ======== 切分資料 ========
+X_train, X_val, y_train, y_val = train_test_split(features_scaled_df, target, test_size=0.2, random_state=62)
 
 # ======== Optuna 搜尋函數 ========
 def objective(trial):
@@ -96,10 +103,14 @@ best_model.fit(X_train, y_train)
 # ======== 儲存模型與資訊 ========
 joblib.dump(best_model, "optuna_best_adaboost.pkl")
 joblib.dump(imputer, "optuna_imputer.pkl")
+joblib.dump(scaler, "optuna_scaler.pkl")
 with open("optuna_adaboost_info.json", "w") as f:
     json.dump({
         'best_params': best_params,
-        'base_estimator': {'max_depth': base_estimator.max_depth, 'min_samples_split': base_estimator.min_samples_split},
+        'base_estimator': {
+            'max_depth': base_estimator.max_depth,
+            'min_samples_split': base_estimator.min_samples_split
+        },
         'best_threshold': float(best_threshold),
         'features': list(features_clean.columns),
         'scale_pos_weight': float(scale_pos_weight),
