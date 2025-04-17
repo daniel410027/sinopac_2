@@ -17,7 +17,7 @@ plt.rcParams['font.sans-serif'] = ['Arial Unicode MS', 'Microsoft YaHei', 'Heiti
 plt.rcParams['axes.unicode_minus'] = False
 
 # ======== 讀取資料 ========
-df = pd.read_csv("../../database/filter_training.csv", encoding="utf-8")
+df = pd.read_csv("../database/filter_training.csv", encoding="utf-8")
 # 取得欄位列表
 columns = df.columns.tolist()
 
@@ -38,10 +38,6 @@ target = df["飆股"]
 features_raw = df.drop(["ID", "飆股"], axis=1)
 features_numeric = features_raw.select_dtypes(include=["number"])
 
-# ======== 標準化處理（可選） ========
-scaler = StandardScaler()
-features_scaled = scaler.fit_transform(features_numeric)
-
 # ======== 缺失值處理 ========
 # 移除全為 NaN 的欄位
 cols_all_nan = features_numeric.columns[features_numeric.isna().all()].tolist()
@@ -52,6 +48,14 @@ features_numeric = features_numeric.drop(columns=cols_all_nan)
 imputer = SimpleImputer(strategy='median')
 features_imputed = imputer.fit_transform(features_numeric)
 features_clean = pd.DataFrame(features_imputed, columns=features_numeric.columns)
+
+# ======== 標準化處理 ========
+scaler = StandardScaler()
+features_scaled = scaler.fit_transform(features_clean)
+features_scaled_df = pd.DataFrame(features_scaled, columns=features_clean.columns)
+
+print("標準化後的特徵資料框 (features_scaled_df) 的前幾行：")
+print(features_scaled_df.head())
 
 # ======== 類別不平衡比例計算 ========
 positive = (target == 1).sum()
@@ -66,19 +70,19 @@ X_train, X_val, y_train, y_val = train_test_split(features_clean, target, test_s
 train_data = cb.Pool(X_train, label=y_train)
 eval_data = cb.Pool(X_val, label=y_val)
 
-# ======== Optuna 目標函數 ========
+# ======== Optuna 目標函數 - 改進後的參數範圍 ========
 def objective(trial):
     params = {
-        "iterations": trial.suggest_int("iterations", 100, 2000),
-        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3),
-        "depth": trial.suggest_int("depth", 4, 10),
-        "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 0.1, 10.0),
-        "border_count": trial.suggest_int("border_count", 32, 255),
-        "bagging_temperature": trial.suggest_float("bagging_temperature", 0.0, 1.0),
-        "random_strength": trial.suggest_float("random_strength", 0.1, 10.0),
-        "scale_pos_weight": scale_pos_weight,
-        "loss_function": "Logloss",
-        "eval_metric": "F1",
+        "iterations": trial.suggest_int("iterations", 200, 600),  # 聚焦在有效迭代區間
+        "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.15),  # 縮小範圍以精細搜索
+        "depth": trial.suggest_int("depth", 3, 7),  # 更集中於有效深度區域
+        "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1.0, 8.0),  # 調整正則化範圍
+        "border_count": trial.suggest_int("border_count", 200, 350),  # 提高上限並擴大範圍
+        "bagging_temperature": trial.suggest_float("bagging_temperature", 0.0, 0.1),  # 精細搜索低溫區間
+        "random_strength": trial.suggest_float("random_strength", 0.1, 2.0),  # 更集中的隨機強度範圍
+        "scale_pos_weight": scale_pos_weight,  # 保持原始權重值
+        "loss_function": "Logloss",  # 保持原始損失函數
+        "eval_metric": "F1",  # 保持F1評估指標
         "random_seed": 62,
         "verbose": False
     }
@@ -89,7 +93,7 @@ def objective(trial):
     y_val_proba = model.predict(X_val, prediction_type="Probability")[:, 1]
 
     # 最佳閾值搜尋
-    thresholds = np.linspace(0.1, 0.9, 9)
+    thresholds = np.linspace(0.1, 0.9, 9)  # 保持原始閾值搜索
     best_f1, best_threshold = 0, 0.5
     for threshold in thresholds:
         y_pred = (y_val_proba > threshold).astype(int)
@@ -103,7 +107,7 @@ def objective(trial):
 
 # ======== 執行 Optuna 超參數搜尋 ========
 study = optuna.create_study(direction="maximize")
-study.optimize(objective, n_trials=50)
+study.optimize(objective, n_trials=50)  # 保持50次試驗
 
 best_params = study.best_params
 best_threshold = study.best_trial.user_attrs['best_threshold']
